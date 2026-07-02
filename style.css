@@ -863,20 +863,25 @@ body {
     gap: 12px;
 }
 
-.top20-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px;
+.top20-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     transition: all var(--transition-fast);
+    overflow: hidden;
 }
 
-.top20-item:hover {
+.top20-card:hover {
     background: var(--bg-card-hover);
     border-color: var(--border-hover);
+}
+
+.top20-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .top20-rank {
@@ -947,6 +952,96 @@ body {
     font-weight: 600;
     font-size: 13px;
     white-space: nowrap;
+}
+
+.top20-details-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    background: rgba(129, 140, 248, 0.05);
+    border-top: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.top20-details-toggle:hover {
+    background: rgba(129, 140, 248, 0.1);
+    color: var(--accent-purple);
+}
+
+.top20-details-toggle.expanded {
+    background: rgba(129, 140, 248, 0.15);
+}
+
+.top20-details-toggle.expanded svg {
+    transform: rotate(180deg);
+    transition: transform var(--transition-fast);
+}
+
+.top20-messages {
+    max-height: 400px;
+    overflow-y: auto;
+    transition: all var(--transition-fast);
+}
+
+.top20-messages.hidden {
+    display: none;
+}
+
+.client-messages-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.client-messages-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.client-messages-table th {
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--accent-purple);
+    background: rgba(129, 140, 248, 0.08);
+}
+
+.client-messages-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.client-messages-table tbody tr:hover {
+    background: rgba(129, 140, 248, 0.05);
+}
+
+.msg-timestamp {
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.msg-number {
+    color: var(--accent-blue);
+    font-weight: 500;
+}
+
+.msg-text {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.msg-payout {
+    color: var(--accent-green);
+    font-weight: 600;
 }
 
 @keyframes fadeIn {

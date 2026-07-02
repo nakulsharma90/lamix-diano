@@ -276,16 +276,17 @@ function renderTable(data) {
 function getTop20Clients() {
     const clientStats = {};
     
-    // Count messages per client and track number ranges
+    // Count messages per client and collect all messages
     allMessages.forEach(msg => {
         if (!clientStats[msg.cli]) {
-            clientStats[msg.cli] = { count: 0, payout: 0, numbers: [] };
+            clientStats[msg.cli] = { count: 0, payout: 0, numbers: [], messages: [] };
         }
         clientStats[msg.cli].count += 1;
         clientStats[msg.cli].payout += parseFloat(msg.payout || 0);
         if (msg.num && !clientStats[msg.cli].numbers.includes(msg.num)) {
             clientStats[msg.cli].numbers.push(msg.num);
         }
+        clientStats[msg.cli].messages.push(msg);
     });
     
     // Convert to array and sort by count
@@ -316,25 +317,61 @@ function renderTop20Modal() {
     const html = `
         <div class="top20-list">
             ${top20.map((item, idx) => `
-                <div class="top20-item">
-                    <div style="display: flex; align-items: center; flex: 1;">
-                        <div class="top20-rank rank-${idx + 1}">${idx + 1}</div>
-                        <div class="top20-info">
-                            <div class="top20-client">${escapeHtml(item.cli)}</div>
-                            <div class="top20-stats">
-                                <div class="top20-stat"><strong>${item.count}</strong> messages</div>
-                                <div class="top20-stat"><strong>$${item.payout.toFixed(3)}</strong> earned</div>
-                                <div class="top20-stat"><strong>${item.numberRange}</strong></div>
+                <div class="top20-card">
+                    <div class="top20-header">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <div class="top20-rank rank-${idx + 1}">${idx + 1}</div>
+                            <div class="top20-info">
+                                <div class="top20-client">${escapeHtml(item.cli)}</div>
+                                <div class="top20-stats">
+                                    <div class="top20-stat"><strong>${item.count}</strong> messages</div>
+                                    <div class="top20-stat"><strong>$${item.payout.toFixed(3)}</strong> earned</div>
+                                    <div class="top20-stat"><strong>${item.numberRange}</strong></div>
+                                </div>
                             </div>
                         </div>
+                        <div class="top20-badge">${((item.count / allMessages.size) * 100).toFixed(1)}%</div>
                     </div>
-                    <div class="top20-badge">${((item.count / allMessages.size) * 100).toFixed(1)}%</div>
+                    <div class="top20-details-toggle" onclick="toggleClientDetails(this)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                        <span>View Messages</span>
+                    </div>
+                    <div class="top20-messages hidden">
+                        <table class="client-messages-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Number</th>
+                                    <th>Message</th>
+                                    <th>Payout</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${item.messages.slice().reverse().map(msg => `
+                                    <tr>
+                                        <td class="msg-timestamp">${formatTimestamp(msg.dt)}</td>
+                                        <td class="msg-number">${formatNumber(msg.num)}</td>
+                                        <td class="msg-text">${highlightCodes(escapeHtml(msg.message))}</td>
+                                        <td class="msg-payout">$${parseFloat(msg.payout).toFixed(3)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `).join('')}
         </div>
     `;
     
     el.top20Body.innerHTML = html;
+}
+
+function toggleClientDetails(element) {
+    const messagesDiv = element.nextElementSibling;
+    messagesDiv.classList.toggle('hidden');
+    element.classList.toggle('expanded');
 }
 
 function showTop20Modal() {
