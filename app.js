@@ -28,9 +28,9 @@ const el = {
     errorMessage: document.getElementById('errorMessage'),
     btnRetry: document.getElementById('btnRetry'),
     lastUpdated: document.getElementById('lastUpdated'),
-    btnTop5: document.getElementById('btnTop5'),
-    top5Modal: document.getElementById('top5Modal'),
-    top5Body: document.getElementById('top5Body'),
+    btnTop20: document.getElementById('btnTop20'),
+    top20Modal: document.getElementById('top20Modal'),
+    top20Body: document.getElementById('top20Body'),
     modalClose: document.getElementById('modalClose'),
 };
 
@@ -271,65 +271,79 @@ function renderTable(data) {
     }).join('');
 }
 
-// ===== Top 5 Clients Feature =====
+// ===== Top 20 Clients Feature =====
 
-function getTop5Clients() {
+function getTop20Clients() {
     const clientStats = {};
     
-    // Count messages per client
+    // Count messages per client and track number ranges
     allMessages.forEach(msg => {
         if (!clientStats[msg.cli]) {
-            clientStats[msg.cli] = { count: 0, payout: 0 };
+            clientStats[msg.cli] = { count: 0, payout: 0, numbers: [] };
         }
         clientStats[msg.cli].count += 1;
         clientStats[msg.cli].payout += parseFloat(msg.payout || 0);
+        if (msg.num && !clientStats[msg.cli].numbers.includes(msg.num)) {
+            clientStats[msg.cli].numbers.push(msg.num);
+        }
     });
     
     // Convert to array and sort by count
     return Object.entries(clientStats)
-        .map(([cli, stats]) => ({ cli, ...stats }))
+        .map(([cli, stats]) => ({ 
+            cli, 
+            ...stats,
+            numberRange: getNumberRange(stats.numbers)
+        }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+        .slice(0, 20);
 }
 
-function renderTop5Modal() {
-    const top5 = getTop5Clients();
+function getNumberRange(numbers) {
+    if (!numbers.length) return 'N/A';
+    const sorted = numbers.sort();
+    return `${sorted[0]} - ${sorted[sorted.length - 1]}`;
+}
+
+function renderTop20Modal() {
+    const top20 = getTop20Clients();
     
-    if (top5.length === 0) {
-        el.top5Body.innerHTML = '<p class="no-results">No client data available yet.</p>';
+    if (top20.length === 0) {
+        el.top20Body.innerHTML = '<p class="no-results">No client data available yet.</p>';
         return;
     }
     
     const html = `
-        <div class="top5-list">
-            ${top5.map((item, idx) => `
-                <div class="top5-item">
-                    <div style="display: flex; align-items: center;">
-                        <div class="top5-rank rank-${idx + 1}">${idx + 1}</div>
-                        <div class="top5-info">
-                            <div class="top5-client">${escapeHtml(item.cli)}</div>
-                            <div class="top5-stats">
-                                <div class="top5-stat"><strong>${item.count}</strong> messages</div>
-                                <div class="top5-stat"><strong>$${item.payout.toFixed(3)}</strong> earned</div>
+        <div class="top20-list">
+            ${top20.map((item, idx) => `
+                <div class="top20-item">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="top20-rank rank-${idx + 1}">${idx + 1}</div>
+                        <div class="top20-info">
+                            <div class="top20-client">${escapeHtml(item.cli)}</div>
+                            <div class="top20-stats">
+                                <div class="top20-stat"><strong>${item.count}</strong> messages</div>
+                                <div class="top20-stat"><strong>$${item.payout.toFixed(3)}</strong> earned</div>
+                                <div class="top20-stat"><strong>${item.numberRange}</strong></div>
                             </div>
                         </div>
                     </div>
-                    <div class="top5-badge">${((item.count / allMessages.size) * 100).toFixed(1)}%</div>
+                    <div class="top20-badge">${((item.count / allMessages.size) * 100).toFixed(1)}%</div>
                 </div>
             `).join('')}
         </div>
     `;
     
-    el.top5Body.innerHTML = html;
+    el.top20Body.innerHTML = html;
 }
 
-function showTop5Modal() {
-    renderTop5Modal();
-    el.top5Modal.classList.remove('hidden');
+function showTop20Modal() {
+    renderTop20Modal();
+    el.top20Modal.classList.remove('hidden');
 }
 
-function closeTop5Modal() {
-    el.top5Modal.classList.add('hidden');
+function closeTop20Modal() {
+    el.top20Modal.classList.add('hidden');
 }
 
 // ===== Events =====
@@ -342,12 +356,12 @@ el.searchInput.addEventListener('input', () => {
     debounce = setTimeout(() => renderTable(getSorted()), 150);
 });
 
-el.btnTop5.addEventListener('click', showTop5Modal);
-el.modalClose.addEventListener('click', closeTop5Modal);
+el.btnTop20.addEventListener('click', showTop20Modal);
+el.modalClose.addEventListener('click', closeTop20Modal);
 
 // Close modal when clicking outside
-el.top5Modal.addEventListener('click', (e) => {
-    if (e.target === el.top5Modal) closeTop5Modal();
+el.top20Modal.addEventListener('click', (e) => {
+    if (e.target === el.top20Modal) closeTop20Modal();
 });
 
 // ===== Initialize =====
