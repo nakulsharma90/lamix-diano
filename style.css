@@ -493,6 +493,49 @@ body {
 
 /* Cell Styles */
 .cell-timestamp {
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.cell-country {
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.cell-number {
+    color: var(--accent-blue);
+    font-weight: 500;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.cell-service {
+    font-weight: 500;
+}
+
+.service-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(129, 140, 248, 0.15);
+    color: var(--accent-purple);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cell-code {
+    color: var(--accent-orange);
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.cell-client {
+    font-weight: 500;
+}
     color: var(--text-secondary);
     font-size: 0.82rem;
     white-space: nowrap;

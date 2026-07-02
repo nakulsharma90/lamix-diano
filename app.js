@@ -128,6 +128,28 @@ function highlightCodes(msg) {
     return msg.replace(/(\b\d{4,6}\b)/g, '<span class="highlight">$1</span>');
 }
 
+function extractService(message) {
+    const match = message.match(/\[(.*?)\]/);
+    return match ? match[1] : 'Unknown';
+}
+
+function extractCode(message) {
+    const match = message.match(/code\s+(\d{4,6})/i);
+    return match ? match[1] : 'N/A';
+}
+
+function extractCountry(number) {
+    if (!number) return 'N/A';
+    // Simple country code extraction from phone number
+    if (number.startsWith('1')) return '🇺🇸 US';
+    if (number.startsWith('44')) return '🇬🇧 UK';
+    if (number.startsWith('91')) return '🇮🇳 IN';
+    if (number.startsWith('86')) return '🇨🇳 CN';
+    if (number.startsWith('81')) return '🇯🇵 JP';
+    if (number.startsWith('33')) return '🇫🇷 FR';
+    return 'International';
+}
+
 function animateValue(element, value, prefix = '', suffix = '') {
     element.classList.add('updating');
     setTimeout(() => {
@@ -247,7 +269,7 @@ function renderTable(data) {
     el.tableCount.textContent = `${filtered.length} of ${data.length} messages (max ${MAX_STORED} stored)`;
 
     if (!filtered.length) {
-        el.tableBody.innerHTML = `<tr><td colspan="5" class="no-results">No messages found${q ? ` matching "${q}"` : ''}.</td></tr>`;
+        el.tableBody.innerHTML = `<tr><td colspan="8" class="no-results">No messages found${q ? ` matching "${q}"` : ''}.</td></tr>`;
         previousKeys = new Set();
         return;
     }
@@ -261,9 +283,15 @@ function renderTable(data) {
 
     el.tableBody.innerHTML = filtered.map(item => {
         const isNew = newKeys.has(msgKey(item));
+        const service = extractService(item.message);
+        const code = extractCode(item.message);
+        const country = extractCountry(item.num);
         return `<tr class="${isNew ? 'new-row' : ''}">
             <td class="cell-timestamp">${formatTimestamp(item.dt)}</td>
+            <td class="cell-country">${country}</td>
             <td class="cell-number">${formatNumber(item.num)}</td>
+            <td class="cell-service"><span class="service-badge">${escapeHtml(service)}</span></td>
+            <td class="cell-code">${code}</td>
             <td><span class="cell-client"><span class="client-badge ${clientClass(item.cli)}">${escapeHtml(item.cli)}</span></span></td>
             <td class="cell-message">${highlightCodes(escapeHtml(item.message))}</td>
             <td class="cell-payout">$${parseFloat(item.payout).toFixed(3)}</td>
