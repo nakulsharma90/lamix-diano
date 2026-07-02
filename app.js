@@ -28,6 +28,10 @@ const el = {
     errorMessage: document.getElementById('errorMessage'),
     btnRetry: document.getElementById('btnRetry'),
     lastUpdated: document.getElementById('lastUpdated'),
+    btnTop5: document.getElementById('btnTop5'),
+    top5Modal: document.getElementById('top5Modal'),
+    top5Body: document.getElementById('top5Body'),
+    modalClose: document.getElementById('modalClose'),
 };
 
 // ===== State =====
@@ -267,6 +271,67 @@ function renderTable(data) {
     }).join('');
 }
 
+// ===== Top 5 Clients Feature =====
+
+function getTop5Clients() {
+    const clientStats = {};
+    
+    // Count messages per client
+    allMessages.forEach(msg => {
+        if (!clientStats[msg.cli]) {
+            clientStats[msg.cli] = { count: 0, payout: 0 };
+        }
+        clientStats[msg.cli].count += 1;
+        clientStats[msg.cli].payout += parseFloat(msg.payout || 0);
+    });
+    
+    // Convert to array and sort by count
+    return Object.entries(clientStats)
+        .map(([cli, stats]) => ({ cli, ...stats }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+}
+
+function renderTop5Modal() {
+    const top5 = getTop5Clients();
+    
+    if (top5.length === 0) {
+        el.top5Body.innerHTML = '<p class="no-results">No client data available yet.</p>';
+        return;
+    }
+    
+    const html = `
+        <div class="top5-list">
+            ${top5.map((item, idx) => `
+                <div class="top5-item">
+                    <div style="display: flex; align-items: center;">
+                        <div class="top5-rank rank-${idx + 1}">${idx + 1}</div>
+                        <div class="top5-info">
+                            <div class="top5-client">${escapeHtml(item.cli)}</div>
+                            <div class="top5-stats">
+                                <div class="top5-stat"><strong>${item.count}</strong> messages</div>
+                                <div class="top5-stat"><strong>$${item.payout.toFixed(3)}</strong> earned</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="top5-badge">${((item.count / allMessages.size) * 100).toFixed(1)}%</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    el.top5Body.innerHTML = html;
+}
+
+function showTop5Modal() {
+    renderTop5Modal();
+    el.top5Modal.classList.remove('hidden');
+}
+
+function closeTop5Modal() {
+    el.top5Modal.classList.add('hidden');
+}
+
 // ===== Events =====
 
 el.btnRetry.addEventListener('click', () => { hideError(); poll(); });
@@ -275,6 +340,14 @@ let debounce;
 el.searchInput.addEventListener('input', () => {
     clearTimeout(debounce);
     debounce = setTimeout(() => renderTable(getSorted()), 150);
+});
+
+el.btnTop5.addEventListener('click', showTop5Modal);
+el.modalClose.addEventListener('click', closeTop5Modal);
+
+// Close modal when clicking outside
+el.top5Modal.addEventListener('click', (e) => {
+    if (e.target === el.top5Modal) closeTop5Modal();
 });
 
 // ===== Initialize =====
