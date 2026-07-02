@@ -1,0 +1,18 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Proxy: /api/stored -> Netlify function that serves stored messages
+[[redirects]]
+  from = "/api/stored"
+  to = "/.netlify/functions/messages"
+  status = 200
+
+# Proxy: /api/* -> external HTTP API (avoids mixed content)
+[[redirects]]
+  from = "/api/*"
+  to = "http://51.77.216.195/crapi/lamix/:splat"
+  status = 200
