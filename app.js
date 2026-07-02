@@ -140,14 +140,170 @@ function extractCode(message) {
 
 function extractCountry(number) {
     if (!number) return 'N/A';
-    // Simple country code extraction from phone number
-    if (number.startsWith('1')) return '🇺🇸 US';
-    if (number.startsWith('44')) return '🇬🇧 UK';
-    if (number.startsWith('91')) return '🇮🇳 IN';
-    if (number.startsWith('86')) return '🇨🇳 CN';
-    if (number.startsWith('81')) return '🇯🇵 JP';
-    if (number.startsWith('33')) return '🇫🇷 FR';
-    return 'International';
+    
+    // Country code mapping
+    const countryMap = {
+        '1': '🇺🇸 United States',
+        '7': '🇷🇺 Russia',
+        '20': '🇪🇬 Egypt',
+        '27': '🇿🇦 South Africa',
+        '30': '🇬🇷 Greece',
+        '31': '🇳🇱 Netherlands',
+        '32': '🇧🇪 Belgium',
+        '33': '🇫🇷 France',
+        '34': '🇪🇸 Spain',
+        '36': '🇭🇺 Hungary',
+        '39': '🇮🇹 Italy',
+        '40': '🇷🇴 Romania',
+        '41': '🇨🇭 Switzerland',
+        '43': '🇦🇹 Austria',
+        '44': '🇬🇧 United Kingdom',
+        '45': '🇩🇰 Denmark',
+        '46': '🇸🇪 Sweden',
+        '47': '🇳🇴 Norway',
+        '48': '🇵🇱 Poland',
+        '49': '🇩🇪 Germany',
+        '51': '🇵🇪 Peru',
+        '52': '🇲🇽 Mexico',
+        '53': '🇨🇺 Cuba',
+        '54': '🇦🇷 Argentina',
+        '55': '🇧🇷 Brazil',
+        '56': '🇨🇱 Chile',
+        '57': '🇨🇴 Colombia',
+        '58': '🇻🇪 Venezuela',
+        '60': '🇲🇾 Malaysia',
+        '61': '🇦🇺 Australia',
+        '62': '🇮🇩 Indonesia',
+        '63': '🇵🇭 Philippines',
+        '64': '🇳🇿 New Zealand',
+        '65': '🇸🇬 Singapore',
+        '66': '🇹🇭 Thailand',
+        '81': '🇯🇵 Japan',
+        '82': '🇰🇷 South Korea',
+        '84': '🇻🇳 Vietnam',
+        '86': '🇨🇳 China',
+        '90': '🇹🇷 Turkey',
+        '91': '🇮🇳 India',
+        '92': '🇵🇰 Pakistan',
+        '93': '🇦🇫 Afghanistan',
+        '94': '🇱🇰 Sri Lanka',
+        '95': '🇲🇲 Myanmar',
+        '98': '🇮🇷 Iran',
+        '212': '🇲🇦 Morocco',
+        '213': '🇩🇿 Algeria',
+        '216': '🇹🇳 Tunisia',
+        '234': '🇳🇬 Nigeria',
+        '254': '🇰🇪 Kenya',
+        '255': '🇹🇿 Tanzania',
+        '256': '🇺🇬 Uganda',
+        '260': '🇿🇲 Zambia',
+        '263': '🇿🇼 Zimbabwe',
+        '353': '🇮🇪 Ireland',
+        '358': '🇫🇮 Finland',
+        '359': '🇧🇬 Bulgaria',
+        '370': '🇱🇹 Lithuania',
+        '371': '🇱🇻 Latvia',
+        '372': '🇪🇪 Estonia',
+        '373': '🇲🇩 Moldova',
+        '374': '🇦🇲 Armenia',
+        '375': '🇧🇾 Belarus',
+        '376': '🇦🇩 Andorra',
+        '377': '🇲🇨 Monaco',
+        '378': '🇸🇲 San Marino',
+        '380': '🇺🇦 Ukraine',
+        '381': '🇷🇸 Serbia',
+        '382': '🇲🇪 Montenegro',
+        '383': '🇽🇰 Kosovo',
+        '385': '🇭🇷 Croatia',
+        '386': '🇸🇮 Slovenia',
+        '387': '🇧🇦 Bosnia',
+        '389': '🇲🇰 Macedonia',
+        '420': '🇨🇿 Czech Republic',
+        '421': '🇸🇰 Slovakia',
+        '423': '🇱🇮 Liechtenstein',
+        '500': '🇬🇸 South Georgia',
+        '501': '🇧🇿 Belize',
+        '502': '🇬🇹 Guatemala',
+        '503': '🇸🇻 El Salvador',
+        '504': '🇭🇳 Honduras',
+        '505': '🇳🇮 Nicaragua',
+        '506': '🇨🇷 Costa Rica',
+        '507': '🇵🇦 Panama',
+        '508': '🇵🇲 Saint Pierre',
+        '509': '🇭🇹 Haiti',
+        '590': '🇬🇵 Guadeloupe',
+        '591': '🇧🇴 Bolivia',
+        '592': '🇬🇾 Guyana',
+        '593': '🇪🇨 Ecuador',
+        '594': '🇬🇫 French Guiana',
+        '595': '🇵🇾 Paraguay',
+        '596': '🇲🇶 Martinique',
+        '597': '🇸🇷 Suriname',
+        '598': '🇺🇾 Uruguay',
+        '599': '🇳🇱 Caribbean Netherlands',
+        '670': '🇹🇱 East Timor',
+        '672': '🇳🇴 Norfolk Island',
+        '673': '🇧🇳 Brunei',
+        '674': '🇳🇷 Nauru',
+        '675': '🇵🇬 Papua New Guinea',
+        '676': '🇹🇴 Tonga',
+        '677': '🇸🇧 Solomon Islands',
+        '678': '🇻🇺 Vanuatu',
+        '679': '🇫🇯 Fiji',
+        '680': '🇵🇼 Palau',
+        '681': '🇼🇫 Wallis and Futuna',
+        '682': '🇨🇰 Cook Islands',
+        '683': '🇳🇪 Niue',
+        '684': '🇦🇸 American Samoa',
+        '685': '🇼🇸 Samoa',
+        '686': '🇰🇮 Kiribati',
+        '687': '🇳🇨 New Caledonia',
+        '688': '🇹🇻 Tuvalu',
+        '689': '🇵🇫 French Polynesia',
+        '690': '🇹🇰 Tokelau',
+        '691': '🇫🇲 Micronesia',
+        '692': '🇲🇭 Marshall Islands',
+        '850': '🇰🇵 North Korea',
+        '852': '🇭🇰 Hong Kong',
+        '853': '🇲🇴 Macau',
+        '855': '🇰🇭 Cambodia',
+        '856': '🇱🇦 Laos',
+        '880': '🇧🇩 Bangladesh',
+        '886': '🇹🇼 Taiwan',
+        '960': '🇲🇻 Maldives',
+        '961': '🇱🇧 Lebanon',
+        '962': '🇯🇴 Jordan',
+        '963': '🇸🇾 Syria',
+        '964': '🇮🇶 Iraq',
+        '965': '🇰🇼 Kuwait',
+        '966': '🇸🇦 Saudi Arabia',
+        '967': '🇾🇪 Yemen',
+        '968': '🇴🇲 Oman',
+        '970': '🇵🇸 Palestine',
+        '971': '🇦🇪 United Arab Emirates',
+        '972': '🇮🇱 Israel',
+        '973': '🇧🇭 Bahrain',
+        '974': '🇶🇦 Qatar',
+        '975': '🇧🇹 Bhutan',
+        '976': '🇲🇳 Mongolia',
+        '977': '🇳🇵 Nepal',
+        '992': '🇹🇯 Tajikistan',
+        '993': '🇹🇲 Turkmenistan',
+        '994': '🇦🇿 Azerbaijan',
+        '995': '🇬🇪 Georgia',
+        '996': '🇰🇬 Kyrgyzstan',
+        '998': '🇺🇿 Uzbekistan',
+    };
+    
+    // Try to match country code
+    for (let i = 4; i >= 1; i--) {
+        const code = number.substring(0, i);
+        if (countryMap[code]) {
+            return countryMap[code];
+        }
+    }
+    
+    return '🌍 International';
 }
 
 function animateValue(element, value, prefix = '', suffix = '') {
@@ -284,14 +440,12 @@ function renderTable(data) {
     el.tableBody.innerHTML = filtered.map(item => {
         const isNew = newKeys.has(msgKey(item));
         const service = extractService(item.message);
-        const code = extractCode(item.message);
         const country = extractCountry(item.num);
         return `<tr class="${isNew ? 'new-row' : ''}">
             <td class="cell-timestamp">${formatTimestamp(item.dt)}</td>
             <td class="cell-country">${country}</td>
             <td class="cell-number">${formatNumber(item.num)}</td>
             <td class="cell-service"><span class="service-badge">${escapeHtml(service)}</span></td>
-            <td class="cell-code">${code}</td>
             <td><span class="cell-client"><span class="client-badge ${clientClass(item.cli)}">${escapeHtml(item.cli)}</span></span></td>
             <td class="cell-message">${highlightCodes(escapeHtml(item.message))}</td>
             <td class="cell-payout">$${parseFloat(item.payout).toFixed(3)}</td>
