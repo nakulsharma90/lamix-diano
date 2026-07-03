@@ -50,7 +50,10 @@ function loadFromLocalStorage() {
         if (!raw) return 0;
         const items = JSON.parse(raw);
         if (!Array.isArray(items)) return 0;
-        items.forEach(item => allMessages.set(msgKey(item), item));
+        items.forEach(rawItem => {
+            const item = normalizeItem(rawItem);
+            allMessages.set(msgKey(item), item);
+        });
         return items.length;
     } catch (e) { return 0; }
 }
@@ -71,7 +74,10 @@ async function loadFromServer() {
         if (!res.ok) return 0;
         const json = await res.json();
         if (json.status !== 'success' || !Array.isArray(json.data)) return 0;
-        json.data.forEach(item => allMessages.set(msgKey(item), item));
+        json.data.forEach(rawItem => {
+            const item = normalizeItem(rawItem);
+            allMessages.set(msgKey(item), item);
+        });
         console.log(`Loaded ${json.data.length} messages from server storage`);
         return json.data.length;
     } catch (e) {
@@ -83,7 +89,10 @@ async function loadFromServer() {
 // ===== Helpers =====
 
 function msgKey(item) {
-    return `${item.dt}|${item.num}|${item.message}`;
+    const dt = item.dt || item.date || item.timestamp || item.time || item.created_at || item.createdAt || '';
+    const num = item.num || item.number || item.msisdn || item.phone || item.phoneNumber || item.mobile || '';
+    const message = item.message || item.sms || item.body || item.text || item.msg || '';
+    return `${dt}|${num}|${message}`;
 }
 
 function getSorted() {
@@ -136,6 +145,27 @@ function extractService(message) {
 function extractCode(message) {
     const match = message.match(/code\s+(\d{4,6})/i);
     return match ? match[1] : 'N/A';
+}
+
+function extractRange(number) {
+    if (!number) return 'N/A';
+    const trimmed = number.replace(/\D/g, '');
+
+    const rangeMap = {
+        '60102': 'Malaysia Digi LX 10F',
+        '60197': 'Malaysia Digi LX',
+        '21354': 'Algeria LX 02Jun',
+        '85576': 'Cambodia LX',
+    };
+
+    for (let len = Math.min(6, trimmed.length); len >= 4; len--) {
+        const prefix = trimmed.substring(0, len);
+        if (rangeMap[prefix]) {
+            return rangeMap[prefix];
+        }
+    }
+
+    return extractCountry(number).replace(/^🇸🇬 |^🇲🇾 |^🇩🇿 /, '').trim();
 }
 
 function extractCountry(number) {
@@ -306,6 +336,45 @@ function extractCountry(number) {
     return '🌍 International';
 }
 
+function normalizeItem(item) {
+    if (!item || typeof item !== 'object') return item;
+
+    const normalized = {
+        ...item,
+        dt: item.dt || item.date || item.timestamp || item.time || item.created_at || item.createdAt || '',
+        num: item.num || item.number || item.msisdn || item.phone || item.phoneNumber || item.mobile || '',
+        cli: item.cli || item.client || item.from || item.sender || '',
+        client: item.client || item.clientName || item.client_name || item.customer || item.account || item.cli || '',
+        message: item.message || item.sms || item.body || item.text || item.msg || '',
+        currency: item.currency || item.currency_code || item.currencyCode || item.currency_id || '$',
+        payout: item.payout ?? item.amount ?? item.myPayout ?? item.my_payout ?? item.value ?? 0,
+        clientPayout: item.client_payout ?? item.clientPayout ?? item.client_amount ?? item.clientAmount ?? 0,
+    };
+
+    return normalized;
+}
+
+function parseAmount(value) {
+    const raw = String(value ?? '');
+    const cleaned = raw.replace(/[^0-9.\-]/g, '');
+    const num = parseFloat(cleaned);
+    return Number.isFinite(num) ? num : 0;
+}
+
+function extractCurrency(item) {
+    return item.currency || item.currency_code || '$';
+}
+
+function getClientName(item) {
+    return item.client || item.clientName || item.cli || '';
+}
+
+function formatClientPayout(value) {
+    const num = parseAmount(value);
+    if (num === 0) return '0';
+    return num.toFixed(3);
+}
+
 function animateValue(element, value, prefix = '', suffix = '') {
     element.classList.add('updating');
     setTimeout(() => {
@@ -335,7 +404,8 @@ async function poll() {
 
         // Merge new data
         let newCount = 0;
-        items.forEach(item => {
+        items.forEach(rawItem => {
+            const item = normalizeItem(rawItem);
             const key = msgKey(item);
             if (!allMessages.has(key)) {
                 allMessages.set(key, item);
@@ -440,15 +510,20 @@ function renderTable(data) {
     el.tableBody.innerHTML = filtered.map(item => {
         const isNew = newKeys.has(msgKey(item));
         const service = extractService(item.message);
-        const country = extractCountry(item.num);
+        const range = extractRange(item.num);
+        const currency = extractCurrency(item);
+        const clientName = getClientName(item);
+        const clientPayout = formatClientPayout(item.client_payout ?? item.clientPayout);
         return `<tr class="${isNew ? 'new-row' : ''}">
             <td class="cell-timestamp">${formatTimestamp(item.dt)}</td>
-            <td class="cell-country">${country}</td>
+            <td class="cell-range">${escapeHtml(range)}</td>
             <td class="cell-number">${formatNumber(item.num)}</td>
-            <td class="cell-service"><span class="service-badge">${escapeHtml(service)}</span></td>
-            <td><span class="cell-client"><span class="client-badge ${clientClass(item.cli)}">${escapeHtml(item.cli)}</span></span></td>
+            <td class="cell-cli">${escapeHtml(item.cli)}</td>
+            <td class="cell-client-name">${escapeHtml(clientName)}</td>
             <td class="cell-message">${highlightCodes(escapeHtml(item.message))}</td>
-            <td class="cell-payout">$${parseFloat(item.payout).toFixed(3)}</td>
+            <td class="cell-currency">${escapeHtml(currency)}</td>
+            <td class="cell-my-payout">$${parseFloat(item.payout || 0).toFixed(3)}</td>
+            <td class="cell-client-payout">${escapeHtml(clientPayout)}</td>
         </tr>`;
     }).join('');
 }
