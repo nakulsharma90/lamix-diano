@@ -1,10 +1,40 @@
 import { getStore } from "@netlify/blobs";
 
-// API endpoint that serves all stored messages to the frontend
+// API endpoint that serves and clears stored messages for the frontend
+
+function getResetKey() {
+    return "reset-state";
+}
+
+function shouldReset(now = new Date()) {
+    const resetHour = 5;
+    const resetMinute = 30;
+    const resetTime = new Date(now);
+    resetTime.setHours(resetHour, resetMinute, 0, 0);
+
+    if (now < resetTime) return false;
+
+    return true;
+}
 
 export default async (req, context) => {
     try {
         const store = getStore("lamix-messages");
+
+        if (req.method === "POST" || req.method === "DELETE") {
+            await store.setJSON("messages", []);
+            await store.set(getResetKey(), new Date().toISOString());
+            return new Response(
+                JSON.stringify({ status: "success", cleared: true, source: "stored" }),
+                {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Cache-Control": "no-cache",
+                    },
+                }
+            );
+        }
 
         let messages = [];
         try {

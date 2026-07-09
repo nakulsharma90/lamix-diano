@@ -4,10 +4,21 @@ import { getStore } from "@netlify/blobs";
 // It fetches the latest 10 messages from the API and merges them into persistent storage
 
 const API_URL = "http://51.77.216.195/crapi/lamix/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM=";
-const MAX_STORED = 500;
+const MAX_STORED = Number.MAX_SAFE_INTEGER;
+const RESET_KEY = "reset-state";
 
 function msgKey(item) {
     return `${item.dt}|${item.num}|${item.message}`;
+}
+
+function shouldReset(now = new Date()) {
+    const resetHour = 5;
+    const resetMinute = 30;
+    const resetTime = new Date(now);
+    resetTime.setHours(resetHour, resetMinute, 0, 0);
+
+    if (now < resetTime) return false;
+    return true;
 }
 
 export default async (req, context) => {
@@ -34,15 +45,29 @@ export default async (req, context) => {
             // First run - no data yet
         }
 
+        let resetState = "";
+        try {
+            resetState = await store.get(RESET_KEY, { type: "text" });
+        } catch (e) {
+            // No reset marker yet
+        }
+
+        const now = new Date();
+        const shouldClear = shouldReset(now) && (!resetState || new Date(resetState) < new Date(now.getFullYear(), now.getMonth(), now.getDate(), 5, 30, 0, 0));
+        if (shouldClear) {
+            existing = [];
+            await store.setJSON("messages", []);
+            await store.set(RESET_KEY, now.toISOString());
+        }
+
         // 3. Merge: deduplicate by key
         const map = new Map();
         existing.forEach(item => map.set(msgKey(item), item));
         json.data.forEach(item => map.set(msgKey(item), item));
 
-        // 4. Sort newest first, trim to MAX_STORED
+        // 4. Sort newest first, keep all messages until the next reset window
         const merged = [...map.values()]
-            .sort((a, b) => new Date(b.dt.replace(" ", "T") + "Z") - new Date(a.dt.replace(" ", "T") + "Z"))
-            .slice(0, MAX_STORED);
+            .sort((a, b) => new Date(b.dt.replace(" ", "T") + "Z") - new Date(a.dt.replace(" ", "T") + "Z"));
 
         // 5. Save back to Netlify Blobs
         await store.setJSON("messages", merged);
