@@ -3,8 +3,8 @@
 // Use Netlify proxy when hosted (avoids HTTPS -> HTTP mixed content block)
 const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
 const LIVE_API = isLocal
-    ? 'http://51.77.216.195/crapi/lamix/viewstats?token=X46ZeF6ViotShZl5WYRse1t3lYiKZ3CAdo6ZdINSh0o='
-    : '/api/viewstats?token=X46ZeF6ViotShZl5WYRse1t3lYiKZ3CAdo6ZdINSh0o=';
+    ? 'http://51.77.216.195/crapi/lamix/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM='
+    : '/api/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM=';
 const STORED_API = '/api/stored';  // Netlify function serving persisted messages
 const POLL_INTERVAL = 3000;
 const MAX_STORED = 500;
