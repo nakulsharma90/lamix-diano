@@ -3,7 +3,7 @@ import { getStore } from "@netlify/blobs";
 // This function runs every 2 minutes on Netlify's servers (even when no one visits the site)
 // It fetches the latest 10 messages from the API and merges them into persistent storage
 
-const API_URL = "http://51.77.216.195/crapi/lamix/viewstats?token=X46ZeF6ViotShZl5WYRse1t3lYiKZ3CAdo6ZdINSh0o=";
+const API_URL = "http://51.77.216.195/crapi/lamix/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM=";
 const MAX_STORED = 500;
 
 function msgKey(item) {
