@@ -817,8 +817,8 @@ body {
     }
 }
 
-/* ===== Filter Button ===== */
-.btn-filter {
+/* ===== Header Buttons ===== */
+.btn-filter, .btn-reset {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -831,16 +831,30 @@ body {
     font-size: 13px;
     cursor: pointer;
     transition: all var(--transition-fast);
+}
+
+.btn-filter {
     margin-right: 12px;
 }
 
-.btn-filter:hover {
+.btn-filter:hover, .btn-reset:hover {
     background: var(--bg-card-hover);
     border-color: var(--accent-purple);
     color: var(--accent-purple);
 }
 
-.btn-filter:active {
+.btn-reset {
+    color: #fda4af;
+    border-color: rgba(251, 113, 133, 0.22);
+    background: rgba(251, 113, 133, 0.08);
+}
+
+.btn-reset:hover {
+    border-color: rgba(251, 113, 133, 0.35);
+    color: #fda4af;
+}
+
+.btn-filter:active, .btn-reset:active {
     transform: scale(0.98);
 }
 

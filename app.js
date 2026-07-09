@@ -7,8 +7,11 @@ const LIVE_API = isLocal
     : '/api/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM=';
 const STORED_API = '/api/stored';  // Netlify function serving persisted messages
 const POLL_INTERVAL = 3000;
-const MAX_STORED = 500;
+const MAX_STORED = Number.MAX_SAFE_INTEGER;
 const STORAGE_KEY = 'lamix_messages';
+const RESET_STATE_KEY = 'lamix_reset_state';
+const RESET_HOUR = 5;
+const RESET_MINUTE = 30;
 
 // DOM Elements
 const el = {
@@ -27,6 +30,7 @@ const el = {
     errorState: document.getElementById('errorState'),
     errorMessage: document.getElementById('errorMessage'),
     btnRetry: document.getElementById('btnRetry'),
+    btnReset: document.getElementById('btnReset'),
     lastUpdated: document.getElementById('lastUpdated'),
     btnTop20: document.getElementById('btnTop20'),
     top20Modal: document.getElementById('top20Modal'),
@@ -44,8 +48,32 @@ let isFetching = false;
 
 // ===== LocalStorage (backup for local/offline) =====
 
+function shouldResetBySchedule(now = new Date()) {
+    const resetTime = new Date(now);
+    resetTime.setHours(RESET_HOUR, RESET_MINUTE, 0, 0);
+
+    if (now < resetTime) return false;
+
+    const lastReset = localStorage.getItem(RESET_STATE_KEY);
+    if (!lastReset) return true;
+
+    return new Date(lastReset) < resetTime;
+}
+
+function applyDailyResetIfNeeded(now = new Date()) {
+    if (!shouldResetBySchedule(now)) return false;
+
+    allMessages.clear();
+    previousKeys = new Set();
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(RESET_STATE_KEY, now.toISOString());
+    return true;
+}
+
 function loadFromLocalStorage() {
     try {
+        if (applyDailyResetIfNeeded()) return 0;
+
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return 0;
         const items = JSON.parse(raw);
@@ -61,8 +89,7 @@ function loadFromLocalStorage() {
 function saveToLocalStorage() {
     try {
         const sorted = getSorted();
-        const trimmed = sorted.slice(0, MAX_STORED);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
     } catch (e) {}
 }
 
@@ -402,6 +429,10 @@ async function poll() {
         fetchCount++;
         const items = json.data || [];
 
+        if (applyDailyResetIfNeeded()) {
+            console.log('Reset due to daily schedule at 05:30');
+        }
+
         // Merge new data
         let newCount = 0;
         items.forEach(rawItem => {
@@ -412,13 +443,6 @@ async function poll() {
                 newCount++;
             }
         });
-
-        // Trim if over limit
-        if (allMessages.size > MAX_STORED) {
-            const sorted = getSorted();
-            allMessages.clear();
-            sorted.slice(0, MAX_STORED).forEach(item => allMessages.set(msgKey(item), item));
-        }
 
         // Save to localStorage as backup
         if (newCount > 0) saveToLocalStorage();
@@ -492,7 +516,7 @@ function renderTable(data) {
             m.dt.toLowerCase().includes(q))
         : data;
 
-    el.tableCount.textContent = `${filtered.length} of ${data.length} messages (max ${MAX_STORED} stored)`;
+    el.tableCount.textContent = `${filtered.length} of ${data.length} messages (all stored until next reset)`;
 
     if (!filtered.length) {
         el.tableBody.innerHTML = `<tr><td colspan="8" class="no-results">No messages found${q ? ` matching "${q}"` : ''}.</td></tr>`;
@@ -640,9 +664,31 @@ function closeTop20Modal() {
     el.top20Modal.classList.add('hidden');
 }
 
+async function resetStoredMessages() {
+    try {
+        const res = await fetch(STORED_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            throw new Error(errText || `HTTP ${res.status}`);
+        }
+    } catch (err) {
+        console.warn('Could not clear server storage:', err);
+    }
+
+    applyDailyResetIfNeeded(new Date());
+    updateStats([]);
+    renderTable([]);
+    hideError();
+    showLoading(false);
+}
+
 // ===== Events =====
 
 el.btnRetry.addEventListener('click', () => { hideError(); poll(); });
+el.btnReset.addEventListener('click', () => { resetStoredMessages(); });
 
 let debounce;
 el.searchInput.addEventListener('input', () => {
