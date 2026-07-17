@@ -21,6 +21,13 @@ function shouldReset(now = new Date()) {
     return true;
 }
 
+function parseTimestamp(value) {
+    if (!value) return null;
+    const text = String(value).replace(" ", "T");
+    const parsed = new Date(text.endsWith("Z") ? text : `${text}Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 async function clearStoredMessages(store) {
     try {
         await store.delete("messages");
@@ -68,20 +75,31 @@ export default async (req, context) => {
 
         const now = new Date();
         const resetWindow = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 5, 30, 0, 0);
-        const parsedResetState = resetState ? new Date(resetState) : null;
-        const shouldClear =
-            (shouldReset(now) && (!parsedResetState || parsedResetState < resetWindow)) ||
-            (parsedResetState && parsedResetState > now - 60000);
+        const parsedResetState = resetState ? parseTimestamp(resetState) : null;
+        const shouldClear = shouldReset(now) && (!parsedResetState || parsedResetState < resetWindow);
 
         if (shouldClear) {
             existing = [];
             await clearStoredMessages(store);
         }
 
+        const minimumTimestamp = parsedResetState ? parsedResetState.getTime() : null;
+        const freshItems = (json.data || []).filter(item => {
+            const itemTime = parseTimestamp(item.dt)?.getTime();
+            if (minimumTimestamp === null || itemTime === null) return true;
+            return itemTime >= minimumTimestamp;
+        });
+
+        const freshExisting = existing.filter(item => {
+            const itemTime = parseTimestamp(item.dt)?.getTime();
+            if (minimumTimestamp === null || itemTime === null) return true;
+            return itemTime >= minimumTimestamp;
+        });
+
         // 3. Merge: deduplicate by key
         const map = new Map();
-        existing.forEach(item => map.set(msgKey(item), item));
-        json.data.forEach(item => map.set(msgKey(item), item));
+        freshExisting.forEach(item => map.set(msgKey(item), item));
+        freshItems.forEach(item => map.set(msgKey(item), item));
 
         // 4. Sort newest first, keep all messages until the next reset window
         const merged = [...map.values()]
@@ -90,7 +108,7 @@ export default async (req, context) => {
         // 5. Save back to Netlify Blobs
         await store.setJSON("messages", merged);
 
-        const msg = `Collected: ${json.data.length} from API, ${existing.length} existing → ${merged.length} total stored (${merged.length - existing.length} new)`;
+        const msg = `Collected: ${freshItems.length} from API, ${freshExisting.length} existing → ${merged.length} total stored (${merged.length - freshExisting.length} new)`;
         console.log(msg);
 
         return new Response(msg, { status: 200 });
