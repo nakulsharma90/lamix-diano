@@ -21,6 +21,20 @@ function shouldReset(now = new Date()) {
     return true;
 }
 
+async function clearStoredMessages(store) {
+    try {
+        await store.delete("messages");
+    } catch (err) {
+        try {
+            await store.setJSON("messages", []);
+        } catch (fallbackErr) {
+            console.warn("Could not clear messages blob during scheduled collection:", fallbackErr);
+        }
+    }
+
+    await store.set(RESET_KEY, new Date().toISOString());
+}
+
 export default async (req, context) => {
     try {
         const store = getStore("lamix-messages");
@@ -53,11 +67,15 @@ export default async (req, context) => {
         }
 
         const now = new Date();
-        const shouldClear = shouldReset(now) && (!resetState || new Date(resetState) < new Date(now.getFullYear(), now.getMonth(), now.getDate(), 5, 30, 0, 0));
+        const resetWindow = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 5, 30, 0, 0);
+        const parsedResetState = resetState ? new Date(resetState) : null;
+        const shouldClear =
+            (shouldReset(now) && (!parsedResetState || parsedResetState < resetWindow)) ||
+            (parsedResetState && parsedResetState > now - 60000);
+
         if (shouldClear) {
             existing = [];
-            await store.setJSON("messages", []);
-            await store.set(RESET_KEY, now.toISOString());
+            await clearStoredMessages(store);
         }
 
         // 3. Merge: deduplicate by key

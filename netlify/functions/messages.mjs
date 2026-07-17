@@ -17,13 +17,32 @@ function shouldReset(now = new Date()) {
     return true;
 }
 
+async function clearStoredMessages(store) {
+    try {
+        await store.delete("messages");
+    } catch (err) {
+        try {
+            await store.setJSON("messages", []);
+        } catch (fallbackErr) {
+            console.warn("Could not delete messages blob, falling back to empty payload:", fallbackErr);
+        }
+    }
+
+    try {
+        await store.delete("reset-state");
+    } catch (err) {
+        // Ignore cleanup failures; the next set call will overwrite.
+    }
+
+    await store.set("reset-state", new Date().toISOString());
+}
+
 export default async (req, context) => {
     try {
         const store = getStore("lamix-messages");
 
         if (req.method === "POST" || req.method === "DELETE") {
-            await store.setJSON("messages", []);
-            await store.set(getResetKey(), new Date().toISOString());
+            await clearStoredMessages(store);
             return new Response(
                 JSON.stringify({ status: "success", cleared: true, source: "stored" }),
                 {
