@@ -54,6 +54,8 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Animated Background ===== */
@@ -134,10 +136,12 @@ body {
     margin-bottom: 32px;
     padding: 16px 24px;
     background: var(--bg-card);
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
     animation: slideDown 0.6s var(--transition-slow);
+    transform: translateZ(0);
+    will-change: transform, opacity;
 }
 
 @keyframes slideDown {
@@ -302,12 +306,14 @@ body {
     gap: 16px;
     padding: 22px 24px;
     background: var(--bg-card);
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     transition: all var(--transition-normal);
     cursor: default;
     animation: fadeInUp 0.6s var(--transition-slow) both;
+    transform: translateZ(0);
+    will-change: transform, opacity;
 }
 
 .stat-card:nth-child(1) { animation-delay: 0.1s; }
@@ -391,11 +397,14 @@ body {
 /* ===== Table Section ===== */
 .table-section {
     background: var(--bg-card);
-    backdrop-filter: blur(24px);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
     overflow: hidden;
     animation: fadeInUp 0.6s var(--transition-slow) 0.3s both;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    contain: layout paint;
 }
 
 .table-header {
@@ -446,7 +455,8 @@ body {
 }
 
 .data-table tbody tr {
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    will-change: background-color;
 }
 
 .data-table tbody tr:nth-child(odd) {

@@ -6,8 +6,9 @@ const LIVE_API = isLocal
     ? 'http://51.77.216.195/crapi/lamix/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM='
     : '/api/viewstats?token=aXZ0gVZXgoCAc2loX4iFSl9mVWB8hVdgdFVhW3SVZXM=';
 const STORED_API = '/api/stored';  // Netlify function serving persisted messages
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 5000;
 const MAX_STORED = Number.MAX_SAFE_INTEGER;
+const MAX_VISIBLE_ROWS = 120;
 const STORAGE_KEY = 'lamix_messages';
 const RESET_STATE_KEY = 'lamix_reset_state';
 const RESET_HOUR = 5;
@@ -45,6 +46,9 @@ let isFirstLoad = true;
 let fetchCount = 0;
 let pollTimer = null;
 let isFetching = false;
+let lastRenderSignature = '';
+let renderFrame = null;
+let isTabVisible = true;
 
 // ===== LocalStorage (backup for local/offline) =====
 
@@ -129,9 +133,12 @@ function getSorted() {
 }
 
 function escapeHtml(text) {
-    const d = document.createElement('div');
-    d.textContent = text;
-    return d.innerHTML;
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function formatTimestamp(dt) {
@@ -403,17 +410,20 @@ function formatClientPayout(value) {
 }
 
 function animateValue(element, value, prefix = '', suffix = '') {
+    const nextText = `${prefix}${value}${suffix}`;
+    if (element.textContent === nextText) return;
+
     element.classList.add('updating');
-    setTimeout(() => {
-        element.textContent = `${prefix}${value}${suffix}`;
+    requestAnimationFrame(() => {
+        element.textContent = nextText;
         element.classList.remove('updating');
-    }, 120);
+    });
 }
 
 // ===== Core: Live Poll =====
 
 async function poll() {
-    if (isFetching) return;
+    if (!isTabVisible || isFetching) return;
     isFetching = true;
 
     try {
@@ -449,7 +459,7 @@ async function poll() {
 
         const sorted = getSorted();
         updateStats(sorted);
-        renderTable(sorted);
+        renderTable(sorted, true);
         setLiveStatus(true);
         hideError();
         showLoading(false);
@@ -506,7 +516,7 @@ function updateStats(data) {
     animateValue(el.uniqueNumbers, numbers.size);
 }
 
-function renderTable(data) {
+function renderTable(data, force = false) {
     const q = el.searchInput.value.toLowerCase().trim();
     const filtered = q
         ? data.filter(m =>
@@ -516,24 +526,34 @@ function renderTable(data) {
             m.dt.toLowerCase().includes(q))
         : data;
 
-    el.tableCount.textContent = `${filtered.length} of ${data.length} messages (all stored until next reset)`;
+    const visibleRows = filtered.slice(0, MAX_VISIBLE_ROWS);
+    const signature = `${q}|${data.length}|${filtered.length}|${visibleRows.map(msgKey).join('|')}`;
+    if (!force && lastRenderSignature === signature) return;
+
+    lastRenderSignature = signature;
+
+    const suffix = filtered.length > MAX_VISIBLE_ROWS ? ` (showing latest ${MAX_VISIBLE_ROWS})` : '';
+    el.tableCount.textContent = `${filtered.length} of ${data.length} messages${suffix}`;
 
     if (!filtered.length) {
-        el.tableBody.innerHTML = `<tr><td colspan="8" class="no-results">No messages found${q ? ` matching "${q}"` : ''}.</td></tr>`;
-        previousKeys = new Set();
+        if (renderFrame) cancelAnimationFrame(renderFrame);
+        renderFrame = requestAnimationFrame(() => {
+            el.tableBody.innerHTML = `<tr><td colspan="9" class="no-results">No messages found${q ? ` matching "${q}"` : ''}.</td></tr>`;
+            previousKeys = new Set();
+            renderFrame = null;
+        });
         return;
     }
 
-    const currentKeys = new Set(filtered.map(msgKey));
+    const currentKeys = new Set(visibleRows.map(msgKey));
     const newKeys = new Set();
     if (!isFirstLoad) {
         currentKeys.forEach(k => { if (!previousKeys.has(k)) newKeys.add(k); });
     }
-    previousKeys = new Set(data.map(msgKey));
+    previousKeys = new Set(visibleRows.map(msgKey));
 
-    el.tableBody.innerHTML = filtered.map(item => {
+    const rowsHtml = visibleRows.map(item => {
         const isNew = newKeys.has(msgKey(item));
-        const service = extractService(item.message);
         const range = extractRange(item.num);
         const currency = extractCurrency(item);
         const clientName = getClientName(item);
@@ -550,6 +570,12 @@ function renderTable(data) {
             <td class="cell-client-payout">${escapeHtml(clientPayout)}</td>
         </tr>`;
     }).join('');
+
+    if (renderFrame) cancelAnimationFrame(renderFrame);
+    renderFrame = requestAnimationFrame(() => {
+        el.tableBody.innerHTML = rowsHtml;
+        renderFrame = null;
+    });
 }
 
 // ===== Top 20 Clients Feature =====
@@ -680,7 +706,7 @@ async function resetStoredMessages() {
 
     applyDailyResetIfNeeded(new Date());
     updateStats([]);
-    renderTable([]);
+    renderTable([], true);
     hideError();
     showLoading(false);
 }
@@ -693,7 +719,7 @@ el.btnReset.addEventListener('click', () => { resetStoredMessages(); });
 let debounce;
 el.searchInput.addEventListener('input', () => {
     clearTimeout(debounce);
-    debounce = setTimeout(() => renderTable(getSorted()), 150);
+    debounce = setTimeout(() => renderTable(getSorted(), true), 80);
 });
 
 el.btnTop20.addEventListener('click', showTop20Modal);
@@ -704,6 +730,17 @@ el.top20Modal.addEventListener('click', (e) => {
     if (e.target === el.top20Modal) closeTop20Modal();
 });
 
+function handleVisibilityChange() {
+    isTabVisible = document.visibilityState === 'visible';
+    if (!isTabVisible && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    } else if (isTabVisible && !pollTimer) {
+        poll();
+        pollTimer = setInterval(poll, POLL_INTERVAL);
+    }
+}
+
 // ===== Initialize =====
 
 async function startLive() {
@@ -713,7 +750,7 @@ async function startLive() {
         const sorted = getSorted();
         previousKeys = new Set(sorted.map(msgKey));
         updateStats(sorted);
-        renderTable(sorted);
+        renderTable(sorted, true);
         showLoading(false);
         isFirstLoad = false;
         console.log(`Rendered ${localCount} messages from localStorage`);
@@ -726,7 +763,7 @@ async function startLive() {
             const sorted = getSorted();
             previousKeys = new Set(sorted.map(msgKey));
             updateStats(sorted);
-            renderTable(sorted);
+            renderTable(sorted, true);
             showLoading(false);
             isFirstLoad = false;
             saveToLocalStorage(); // sync server data to localStorage
@@ -734,8 +771,8 @@ async function startLive() {
     }
 
     // Step 3: Start live polling
-    poll();
-    pollTimer = setInterval(poll, POLL_INTERVAL);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    handleVisibilityChange();
 }
 
 startLive();
